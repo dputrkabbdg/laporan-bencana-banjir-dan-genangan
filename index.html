@@ -330,47 +330,161 @@
     }
 
     // --- MAP ---
-    function updateMap() {
-        if (!map) {
-            map = L.map('map').setView([-6.2000, 106.8166], 10); // Sesuaikan koordinat default
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
-            markersLayer = L.layerGroup().addTo(map);
-        }
-        markersLayer.clearLayers();
-
-        allReports.forEach(r => {
-            const lat = parseFloat(r.Latitude), lng = parseFloat(r.Longitude);
-            const tinggi = parseInt(r.Tinggi_Air) || 0;
-            let color = '#eab308'; 
-            if (tinggi >= 30 && tinggi <= 100) color = '#f97316'; 
-            if (tinggi > 100) color = '#dc2626'; 
-            if (r.Status_Validasi === 'Terverifikasi' || r.Status_Validasi === 'Sedang Ditangani' || r.Status_Validasi === 'Selesai') color = '#16a34a'; 
-
-            const marker = L.circleMarker([lat, lng], { radius: 8, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.8 });
-            
-            let fotoHtml = '';
-            if (r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto') {
-                const urls = r.Foto_URL.split(' | ');
-                fotoHtml = urls.map(url => `<img src="${url.trim()}" class="w-full h-32 object-cover rounded mt-2 mb-1">`).join('');
-            }
-            
-            marker.bindPopup(`
-                <div class="text-sm min-w-[200px]">
-                    <strong class="text-lg">${r.Lokasi_Detail}</strong><br>
-                    <b>Desa/Kec:</b> ${r.Desa}, ${r.Kecamatan}<br>
-                    <b>Kategori:</b> ${r.Kategori} | <b>Tinggi:</b> ${r.Tinggi_Air} cm<br>
-                    <b>Akses:</b> ${r.Status_Akses}<br>
-                    <b>Waktu:</b> ${r.Waktu_Kejadian}<br>
-                    <b>Pelapor:</b> ${r.Nama_Pelapor}<br>
-                    <b>Status:</b> <span class="font-bold ${r.Status_Validasi.includes('Menunggu') ? 'text-red-600' : 'text-green-600'}">${r.Status_Validasi}</span><br>
-                    <i>"${r.Keterangan}"</i>
-                    ${fotoHtml}
-                </div>
-            `);
-            markersLayer.addLayer(marker);
-        });
+    // --- MAP ---
+function updateMap() {
+    if (!map) {
+        map = L.map('map').setView([-6.2000, 106.8166], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
+        markersLayer = L.layerGroup().addTo(map);
     }
+    markersLayer.clearLayers();
 
+    allReports.forEach(r => {
+        const lat = parseFloat(r.Latitude), lng = parseFloat(r.Longitude);
+        const tinggi = parseInt(r.Tinggi_Air) || 0;
+        let color = '#eab308'; 
+        if (tinggi >= 30 && tinggi <= 100) color = '#f97316'; 
+        if (tinggi > 100) color = '#dc2626'; 
+        if (r.Status_Validasi === 'Terverifikasi' || r.Status_Validasi === 'Sedang Ditangani' || r.Status_Validasi === 'Selesai') color = '#16a34a'; 
+
+        const marker = L.circleMarker([lat, lng], { radius: 8, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.8 });
+        
+        // Buat link ke folder Google Drive
+        const folderLink = FOLDER_ID ? `https://drive.google.com/drive/folders/${FOLDER_ID}` : '#';
+        
+        // Cek apakah ada foto
+        const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
+        
+        let fotoButtonHtml = '';
+        if (hasPhotos) {
+            // Ambil URL foto pertama untuk link
+            const firstFotoUrl = r.Foto_URL.split(' | ')[0].trim();
+            fotoButtonHtml = `
+                <div class="mt-2">
+                    <a href="${firstFotoUrl}" target="_blank" class="inline-block bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded transition">
+                        📷 Lihat Foto (${r.Foto_URL.split(' | ').length} foto)
+                    </a>
+                </div>
+            `;
+        }
+        
+        marker.bindPopup(`
+            <div class="text-sm min-w-[250px] max-w-[300px]">
+                <div class="border-b pb-2 mb-2">
+                    <strong class="text-base text-blue-800">${r.Lokasi_Detail}</strong>
+                </div>
+                <table class="w-full text-xs">
+                    <tr><td class="py-1 font-semibold">Desa/Kec:</td><td class="py-1">${r.Desa}, ${r.Kecamatan}</td></tr>
+                    <tr><td class="py-1 font-semibold">Kategori:</td><td class="py-1">${r.Kategori}</td></tr>
+                    <tr><td class="py-1 font-semibold">Tinggi Air:</td><td class="py-1 font-bold text-red-600">${r.Tinggi_Air} cm</td></tr>
+                    <tr><td class="py-1 font-semibold">Akses:</td><td class="py-1">${r.Status_Akses}</td></tr>
+                    <tr><td class="py-1 font-semibold">Waktu:</td><td class="py-1">${r.Waktu_Kejadian}</td></tr>
+                    <tr><td class="py-1 font-semibold">Pelapor:</td><td class="py-1">${r.Nama_Pelapor}</td></tr>
+                    <tr><td class="py-1 font-semibold">Status:</td><td class="py-1"><span class="px-2 py-0.5 rounded text-xs ${r.Status_Validasi.includes('Menunggu') ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">${r.Status_Validasi}</span></td></tr>
+                    <tr><td class="py-1 font-semibold" valign="top">Keterangan:</td><td class="py-1"><i>"${r.Keterangan || '-'}"</i></td></tr>
+                </table>
+                ${fotoButtonHtml}
+            </div>
+        `);
+        markersLayer.addLayer(marker);
+    });
+}
+
+// --- DOWNLOAD KMZ (FIXED) ---
+async function downloadKMZ() {
+    if (allReports.length === 0) { alert('Belum ada data.'); return; }
+    
+    const zip = new JSZip();
+    
+    // Fungsi untuk escape XML special characters
+    function escapeXml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe.toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+    }
+    
+    let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+    <name>Laporan Banjir dan Genangan Realtime</name>
+    <description>Data diekspor pada ${escapeXml(new Date().toLocaleString('id-ID'))}</description>
+`;
+
+    allReports.forEach(r => {
+        const tinggi = parseInt(r.Tinggi_Air) || 0;
+        let colorHex = '00FFFF'; 
+        if (tinggi >= 30 && tinggi <= 100) colorHex = '00A5FF'; 
+        if (tinggi > 100) colorHex = '0000FF'; 
+        if (r.Status_Validasi === 'Terverifikasi' || r.Status_Validasi === 'Selesai') colorHex = '00FF00'; 
+
+        // Cek apakah ada foto
+        const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
+        const fotoCount = hasPhotos ? r.Foto_URL.split(' | ').length : 0;
+        const firstFotoUrl = hasPhotos ? r.Foto_URL.split(' | ')[0].trim() : '';
+        
+        // Buat deskripsi dengan HTML yang aman untuk XML
+        let fotoLinkHtml = '';
+        if (hasPhotos) {
+            fotoLinkHtml = `<br/><b>Foto:</b> <a href="${escapeXml(firstFotoUrl)}">Lihat ${fotoCount} Foto di Google Drive</a>`;
+        }
+
+        const description = `<![CDATA[
+            <div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5;">
+                <h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 16px;">${escapeXml(r.Kategori)} - ${escapeXml(r.Lokasi_Detail)}</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd; width: 40%;"><b>Desa/Kecamatan</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Desa)}, ${escapeXml(r.Kecamatan)}</td></tr>
+                    <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Tinggi Air</b></td><td style="padding: 6px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${escapeXml(r.Tinggi_Air)} cm</td></tr>
+                    <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Status Akses</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Status_Akses)}</td></tr>
+                    <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Waktu Kejadian</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Waktu_Kejadian)}</td></tr>
+                    <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Pelapor</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Nama_Pelapor)} (${escapeXml(r.No_HP)})</td></tr>
+                    <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Status UPTD</b></td><td style="padding: 6px; border: 1px solid #ddd;"><b style="color: ${r.Status_Validasi.includes('Menunggu') ? '#d97706' : '#16a34a'}">${escapeXml(r.Status_Validasi)}</b></td></tr>
+                    <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;" valign="top"><b>Keterangan</b></td><td style="padding: 6px; border: 1px solid #ddd;"><i>${escapeXml(r.Keterangan || '-')}</i></td></tr>
+                </table>
+                ${fotoLinkHtml}
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
+                    ID Laporan: ${escapeXml(r.ID_Laporan)}<br/>
+                    Exported: ${escapeXml(new Date().toLocaleString('id-ID'))}
+                </div>
+            </div>
+        ]]>`;
+
+        kmlContent += `
+    <Placemark>
+        <name>${escapeXml(r.Kategori)}: ${escapeXml(r.Lokasi_Detail)}</name>
+        <description>${description}</description>
+        <Style>
+            <IconStyle>
+                <color>ff${colorHex}</color>
+                <scale>1.2</scale>
+                <Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
+            </IconStyle>
+        </Style>
+        <Point>
+            <coordinates>${r.Longitude},${r.Latitude},0</coordinates>
+        </Point>
+    </Placemark>`;
+    });
+
+    kmlContent += `</Document></kml>`;
+
+    // Masukkan file doc.kml ke dalam ZIP
+    zip.file("doc.kml", kmlContent);
+    
+    // Generate file KMZ
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Banjir_Realtime_${new Date().getTime()}.kmz`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
     // --- ADMIN PANEL (BACKEND AUTH) ---
     async function checkAdmin() {
         const pin = document.getElementById('adminPin').value;
