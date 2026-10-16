@@ -401,28 +401,37 @@
 
     // --- DOWNLOAD KMZ (FIXED & SINGLE VERSION) ---
     async function downloadKMZ() {
-        if (allReports.length === 0) { alert('Belum ada data.'); return; }
-        
-        const zip = new JSZip();
-        
-        function escapeXml(unsafe) {
-            if (!unsafe) return '';
-            return unsafe.toString()
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&apos;');
-        }
-        
-        let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-<Document>
-    <name>Laporan Banjir dan Genangan Realtime</name>
-    <description>Data diekspor pada ${escapeXml(new Date().toLocaleString('id-ID'))}</description>
-`;
+    if (allReports.length === 0) { alert('Belum ada data.'); return; }
+    
+    const zip = new JSZip();
+    
+    // Fungsi untuk membersihkan string agar aman untuk XML
+    function cleanXml(str) {
+        if (!str) return '';
+        return str.toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;')
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''); // Hapus control characters
+    }
+    
+    // Fungsi untuk membuat CDATA yang aman
+    function makeCdata(str) {
+        if (!str) return '';
+        // Ganti ]] > dengan ]] ] ] > untuk mencegah penutupan CDATA prematur
+        return str.replace(/\]\]>/g, ']]]]><![CDATA[>');
+    }
 
-        allReports.forEach(r => {
+    let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    kmlContent += `<kml xmlns="http://www.opengis.net/kml/2.2">\n`;
+    kmlContent += `<Document>\n`;
+    kmlContent += `    <name>Laporan Banjir dan Genangan Realtime</name>\n`;
+    kmlContent += `    <description>Data diekspor pada ${cleanXml(new Date().toLocaleString('id-ID'))}</description>\n`;
+
+    allReports.forEach((r, index) => {
+        try {
             const tinggi = parseInt(r.Tinggi_Air) || 0;
             let colorHex = '00FFFF'; 
             if (tinggi >= 30 && tinggi <= 100) colorHex = '00A5FF'; 
@@ -431,65 +440,92 @@
             const status = r.Status_Validasi || 'Menunggu Verifikasi';
             if (status === 'Terverifikasi' || status === 'Selesai') colorHex = '00FF00'; 
 
-            const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
-            const fotoCount = hasPhotos ? r.Foto_URL.split(' | ').length : 0;
-            const firstFotoUrl = hasPhotos ? r.Foto_URL.split(' | ')[0].trim() : '';
-            
+            // Siapkan data dengan pembersihan
+            const kategori = cleanXml(r.Kategori || '-');
+            const lokasiDetail = cleanXml(r.Lokasi_Detail || 'Lokasi Tidak Diketahui');
+            const desa = cleanXml(r.Desa || '-');
+            const kecamatan = cleanXml(r.Kecamatan || '-');
+            const tinggiAir = cleanXml(r.Tinggi_Air || '0');
+            const statusAkses = cleanXml(r.Status_Akses || '-');
+            const waktuKejadian = cleanXml(r.Waktu_Kejadian || '-');
+            const namaPelapor = cleanXml(r.Nama_Pelapor || 'Anonim');
+            const noHp = cleanXml(r.No_HP || '-');
+            const keterangan = cleanXml(r.Keterangan || '-');
+            const idLaporan = cleanXml(r.ID_Laporan || '-');
+            const exportTime = cleanXml(new Date().toLocaleString('id-ID'));
+
+            // Buat HTML description dengan CDATA yang aman
             let fotoLinkHtml = '';
+            const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
             if (hasPhotos) {
-                fotoLinkHtml = `<br/><b>Foto:</b> <a href="${escapeXml(firstFotoUrl)}" target="_blank">Lihat ${fotoCount} Foto di Google Drive</a>`;
+                const fotoCount = r.Foto_URL.split(' | ').length;
+                const firstFotoUrl = cleanXml(r.Foto_URL.split(' | ')[0].trim());
+                fotoLinkHtml = `<br/><b>Foto:</b> <a href="${firstFotoUrl}">Lihat ${fotoCount} Foto di Google Drive</a>`;
             }
 
-            const description = `<![CDATA[
-                <div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5;">
-                    <h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 16px;">${escapeXml(r.Kategori || '-')} - ${escapeXml(r.Lokasi_Detail || 'Lokasi Tidak Diketahui')}</h3>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd; width: 40%;"><b>Desa/Kecamatan</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Desa || '-')}, ${escapeXml(r.Kecamatan || '-')}</td></tr>
-                        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Tinggi Air</b></td><td style="padding: 6px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${escapeXml(r.Tinggi_Air || '0')} cm</td></tr>
-                        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Status Akses</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Status_Akses || '-')}</td></tr>
-                        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Waktu Kejadian</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Waktu_Kejadian || '-')}</td></tr>
-                        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Pelapor</b></td><td style="padding: 6px; border: 1px solid #ddd;">${escapeXml(r.Nama_Pelapor || 'Anonim')} (${escapeXml(r.No_HP || '-')})</td></tr>
-                        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Status UPTD</b></td><td style="padding: 6px; border: 1px solid #ddd;"><b style="color: ${status.includes('Menunggu') ? '#d97706' : '#16a34a'}">${escapeXml(status)}</b></td></tr>
-                        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;" valign="top"><b>Keterangan</b></td><td style="padding: 6px; border: 1px solid #ddd;"><i>${escapeXml(r.Keterangan || '-')}</i></td></tr>
-                    </table>
-                    ${fotoLinkHtml}
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
-                        ID Laporan: ${escapeXml(r.ID_Laporan || '-')}<br/>
-                        Exported: ${escapeXml(new Date().toLocaleString('id-ID'))}
-                    </div>
-                </div>
-            ]]>`;
+            const htmlDescription = `
+<div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5;">
+    <h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 16px;">${kategori} - ${lokasiDetail}</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd; width: 40%;"><b>Desa/Kecamatan</b></td><td style="padding: 6px; border: 1px solid #ddd;">${desa}, ${kecamatan}</td></tr>
+        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Tinggi Air</b></td><td style="padding: 6px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${tinggiAir} cm</td></tr>
+        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Status Akses</b></td><td style="padding: 6px; border: 1px solid #ddd;">${statusAkses}</td></tr>
+        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Waktu Kejadian</b></td><td style="padding: 6px; border: 1px solid #ddd;">${waktuKejadian}</td></tr>
+        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Pelapor</b></td><td style="padding: 6px; border: 1px solid #ddd;">${namaPelapor} (${noHp})</td></tr>
+        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Status UPTD</b></td><td style="padding: 6px; border: 1px solid #ddd;"><b style="color: ${status.includes('Menunggu') ? '#d97706' : '#16a34a'}">${cleanXml(status)}</b></td></tr>
+        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;" valign="top"><b>Keterangan</b></td><td style="padding: 6px; border: 1px solid #ddd;"><i>${keterangan}</i></td></tr>
+    </table>
+    ${fotoLinkHtml}
+    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
+        ID Laporan: ${idLaporan}<br/>
+        Exported: ${exportTime}
+    </div>
+</div>`;
 
-            kmlContent += `
-        <Placemark>
-            <name>${escapeXml(r.Kategori || '-')}: ${escapeXml(r.Lokasi_Detail || 'Lokasi')}</name>
-            <description>${description}</description>
-            <Style>
-                <IconStyle>
-                    <color>ff${colorHex}</color>
-                    <scale>1.2</scale>
-                    <Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
-                </IconStyle>
-            </Style>
-            <Point>
-                <coordinates>${r.Longitude},${r.Latitude},0</coordinates>
-            </Point>
-        </Placemark>`;
-        });
+            const safeDescription = makeCdata(htmlDescription);
+            const placemarkName = `${kategori}: ${lokasiDetail}`;
+            
+            const lng = cleanXml(r.Longitude);
+            const lat = cleanXml(r.Latitude);
 
-        kmlContent += `</Document></kml>`;
-        zip.file("doc.kml", kmlContent);
-        
-        const blob = await zip.generateAsync({ type: "blob" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Laporan_Banjir_Realtime_${new Date().getTime()}.kmz`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
+            kmlContent += `    <Placemark>\n`;
+            kmlContent += `        <name>${placemarkName}</name>\n`;
+            kmlContent += `        <description><![CDATA[${safeDescription}]]></description>\n`;
+            kmlContent += `        <Style>\n`;
+            kmlContent += `            <IconStyle>\n`;
+            kmlContent += `                <color>ff${colorHex}</color>\n`;
+            kmlContent += `                <scale>1.2</scale>\n`;
+            kmlContent += `                <Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>\n`;
+            kmlContent += `            </IconStyle>\n`;
+            kmlContent += `        </Style>\n`;
+            kmlContent += `        <Point>\n`;
+            kmlContent += `            <coordinates>${lng},${lat},0</coordinates>\n`;
+            kmlContent += `        </Point>\n`;
+            kmlContent += `    </Placemark>\n`;
+            
+        } catch (err) {
+            console.error('Error processing report', index, err);
+            // Lanjutkan ke report berikutnya jika ada error
+        }
+    });
+
+    kmlContent += `</Document>\n`;
+    kmlContent += `</kml>\n`;
+
+    // Masukkan file doc.kml ke dalam ZIP
+    zip.file("doc.kml", kmlContent);
+    
+    // Generate file KMZ
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Banjir_Realtime_${new Date().getTime()}.kmz`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
     // --- ADMIN PANEL ---
     async function checkAdmin() {
