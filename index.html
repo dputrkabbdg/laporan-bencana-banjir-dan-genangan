@@ -44,16 +44,14 @@
     #admin-panel td, #admin-panel th { padding: 13px 12px !important; border-bottom: 1px solid #EAF0EE; vertical-align: middle; }
     #admin-panel tbody tr:hover { background: #F5F9F8 !important; }
     
-    /* Custom marker styles */
-    .custom-marker-icon {
-        background: transparent;
-        border: none;
-    }
-    .custom-marker-icon img {
-        width: 40px;
-        height: 40px;
+    /* Logo di header */
+    .header-logo {
+        width: 48px;
+        height: 48px;
         object-fit: contain;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        border-radius: 10px;
+        background: rgba(255,255,255,0.15);
+        padding: 4px;
     }
     
     @media (max-width: 640px) {
@@ -64,6 +62,7 @@
         main { padding: 14px !important; }
         main > section { padding: 17px !important; }
         #map { height: 450px; }
+        .header-logo { width: 40px; height: 40px; }
     }
 </style>
 </head>
@@ -71,7 +70,9 @@
 
 <header class="bg-blue-800 text-white p-4 shadow-md">
     <div class="max-w-6xl mx-auto flex items-center gap-3">
-        <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-xl bg-white/15 text-2xl">🌊</div>
+        <div class="hidden sm:flex items-center justify-center">
+            <img src="logo.png" alt="Logo" class="header-logo">
+        </div>
         <div class="flex-1">
             <p class="text-xs uppercase tracking-widest text-emerald-100 mb-1">Sistem Informasi Kebencanaan</p>
             <h1 class="text-xl md:text-2xl font-bold text-left">Pelaporan Banjir & Genangan Realtime</h1>
@@ -144,10 +145,10 @@
         </div>
         <div id="map" class="rounded-lg border"></div>
         <div class="mt-4 flex flex-wrap gap-4 text-sm">
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-yellow-500 rounded-full inline-block"></span> Genangan (< 30cm)</span>
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-orange-500 rounded-full inline-block"></span> Banjir (30-100cm)</span>
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-red-600 rounded-full inline-block"></span> Banjir Parah (> 100cm)</span>
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-green-600 rounded-full inline-block"></span> Terverifikasi / Ditangani</span>
+            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-yellow-400 rounded-full inline-block border-2 border-white shadow"></span> Genangan (< 30cm)</span>
+            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-orange-500 rounded-full inline-block border-2 border-white shadow"></span> Banjir (30-100cm)</span>
+            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-red-600 rounded-full inline-block border-2 border-white shadow"></span> Banjir Parah (> 100cm)</span>
+            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-cyan-400 rounded-full inline-block border-2 border-white shadow"></span> Terverifikasi / Ditangani</span>
         </div>
     </section>
 
@@ -191,14 +192,6 @@
     let map, markersLayer, allReports = [];
     let selectedFiles = [];
     let sessionPin = '';
-    
-    // Custom icon dengan logo
-    const customIcon = L.icon({
-        iconUrl: 'logo.png',
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        popupAnchor: [0, -40]
-    });
 
     function showTab(tabName) {
         document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
@@ -352,7 +345,7 @@
         document.getElementById('totalPending').innerText = allReports.filter(r => (r.Status_Validasi || '').includes('Menunggu')).length;
     }
 
-    // --- MAP (DIPERBAIKI DENGAN KABUPATEN BANDUNG CENTER & LOGO CUSTOM) ---
+    // --- MAP (WARNA KONTRAS UNTUK GOOGLE EARTH - LATAR HIJAU) ---
     function updateMap() {
         if (!map) {
             // Inisialisasi peta dengan center Kabupaten Bandung
@@ -373,17 +366,30 @@
             if (isNaN(lat) || isNaN(lng)) return;
 
             const tinggi = parseInt(r.Tinggi_Air) || 0;
-            let color = '#eab308'; 
-            if (tinggi >= 30 && tinggi <= 100) color = '#f97316'; 
-            if (tinggi > 100) color = '#dc2626'; 
+            
+            // WARNA KONTRAS untuk Google Earth (latar hijau):
+            // - Kuning terang: kontras dengan hijau
+            // - Oranye: kontras dengan hijau  
+            // - Merah: kontras dengan hijau
+            // - Cyan/Biru muda: kontras dengan hijau
+            let color = '#FFD700'; // Kuning emas - sangat kontras dengan hijau
+            if (tinggi >= 30 && tinggi <= 100) color = '#FF6600'; // Oranye terang
+            if (tinggi > 100) color = '#FF0000'; // Merah terang
             
             const status = r.Status_Validasi || 'Menunggu Verifikasi';
             if (status === 'Terverifikasi' || status === 'Sedang Ditangani' || status === 'Selesai') {
-                color = '#16a34a'; 
+                color = '#00BFFF'; // Cyan/biru langit - sangat kontras dengan hijau
             }
 
-            // Gunakan custom icon dengan logo
-            const marker = L.marker([lat, lng], { icon: customIcon });
+            // CircleMarker dengan border putih agar lebih terlihat
+            const marker = L.circleMarker([lat, lng], { 
+                radius: 10, 
+                fillColor: color, 
+                color: '#FFFFFF', // Border putih
+                weight: 3, // Border tebal
+                fillOpacity: 0.9,
+                opacity: 1
+            });
             
             const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
             let fotoButtonHtml = '';
@@ -438,7 +444,7 @@
         }
     }
 
-    // --- DOWNLOAD KMZ (TETAP SAMA) ---
+    // --- DOWNLOAD KMZ (WARNA KONTRAS UNTUK GOOGLE EARTH) ---
     async function downloadKMZ() {
     if (allReports.length === 0) { alert('Belum ada data.'); return; }
     
@@ -469,12 +475,15 @@
     allReports.forEach((r, index) => {
         try {
             const tinggi = parseInt(r.Tinggi_Air) || 0;
-            let colorHex = '00FFFF'; 
-            if (tinggi >= 30 && tinggi <= 100) colorHex = '00A5FF'; 
-            if (tinggi > 100) colorHex = '0000FF'; 
+            
+            // WARNA KONTRAS untuk Google Earth (format KML: AABBGGR - Alpha, Blue, Green, Red)
+            // Latar Google Earth hijau, jadi gunakan warna yang kontras:
+            let colorHex = '00D7FF'; // Kuning (FFD700 dalam BGR) - sangat kontras dengan hijau
+            if (tinggi >= 30 && tinggi <= 100) colorHex = '0066FF'; // Oranye (FF6600 dalam BGR)
+            if (tinggi > 100) colorHex = '0000FF'; // Merah (FF0000 dalam BGR)
             
             const status = r.Status_Validasi || 'Menunggu Verifikasi';
-            if (status === 'Terverifikasi' || status === 'Selesai') colorHex = '00FF00'; 
+            if (status === 'Terverifikasi' || status === 'Selesai') colorHex = 'FFBF00'; // Cyan (00BFFF dalam BGR)
 
             const kategori = cleanXml(r.Kategori || '-');
             const lokasiDetail = cleanXml(r.Lokasi_Detail || 'Lokasi Tidak Diketahui');
@@ -528,7 +537,7 @@
             kmlContent += `        <Style>\n`;
             kmlContent += `            <IconStyle>\n`;
             kmlContent += `                <color>ff${colorHex}</color>\n`;
-            kmlContent += `                <scale>1.2</scale>\n`;
+            kmlContent += `                <scale>1.3</scale>\n`;
             kmlContent += `                <Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>\n`;
             kmlContent += `            </IconStyle>\n`;
             kmlContent += `        </Style>\n`;
