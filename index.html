@@ -36,13 +36,26 @@
     #btnSubmit { background: var(--primary) !important; box-shadow: 0 5px 12px rgba(31,99,102,.15); }
     #btnSubmit:hover { background: var(--primary-dark) !important; }
     #tab-dashboard .grid > div { border: 1px solid rgba(31,99,102,.08); border-radius: 14px !important; padding: 20px 14px !important; }
-    #map { height: 500px; width: 100%; border-radius: 14px; z-index: 1; }
+    #map { height: 600px; width: 100%; border-radius: 14px; z-index: 1; }
     #admin-login { max-width: 470px; margin: auto; padding: 44px 20px !important; }
     #admin-panel .overflow-x-auto { border: 1px solid var(--border); border-radius: 12px; }
     #admin-panel table { width: 100%; border-collapse: separate; border-spacing: 0; }
     #admin-panel thead { background: #EDF4F2 !important; color: var(--primary-dark); }
     #admin-panel td, #admin-panel th { padding: 13px 12px !important; border-bottom: 1px solid #EAF0EE; vertical-align: middle; }
     #admin-panel tbody tr:hover { background: #F5F9F8 !important; }
+    
+    /* Custom marker styles */
+    .custom-marker-icon {
+        background: transparent;
+        border: none;
+    }
+    .custom-marker-icon img {
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+    
     @media (max-width: 640px) {
         header.bg-blue-800 { padding: 20px 14px !important; }
         header h1 { font-size: 19px !important; }
@@ -50,7 +63,7 @@
         nav button { white-space: nowrap; flex-shrink: 0; padding: 10px 12px !important; font-size: 13px; }
         main { padding: 14px !important; }
         main > section { padding: 17px !important; }
-        #map { height: 400px; }
+        #map { height: 450px; }
     }
 </style>
 </head>
@@ -178,6 +191,14 @@
     let map, markersLayer, allReports = [];
     let selectedFiles = [];
     let sessionPin = '';
+    
+    // Custom icon dengan logo
+    const customIcon = L.icon({
+        iconUrl: 'logo.png',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+        popupAnchor: [0, -40]
+    });
 
     function showTab(tabName) {
         document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
@@ -192,6 +213,13 @@
 
         if (tabName === 'dashboard' || tabName === 'peta' || tabName === 'admin') {
             fetchData();
+        }
+        
+        // Fix map render when tab is shown
+        if (tabName === 'peta' && map) {
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
         }
     }
 
@@ -324,11 +352,15 @@
         document.getElementById('totalPending').innerText = allReports.filter(r => (r.Status_Validasi || '').includes('Menunggu')).length;
     }
 
-    // --- MAP (DIPERBAIKI DENGAN SAFE CHECKS) ---
+    // --- MAP (DIPERBAIKI DENGAN KABUPATEN BANDUNG CENTER & LOGO CUSTOM) ---
     function updateMap() {
         if (!map) {
-            map = L.map('map').setView([-6.2000, 106.8166], 10);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
+            // Inisialisasi peta dengan center Kabupaten Bandung
+            map = L.map('map').setView([-6.9175, 107.6191], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
             markersLayer = L.layerGroup().addTo(map);
         }
         markersLayer.clearLayers();
@@ -350,7 +382,8 @@
                 color = '#16a34a'; 
             }
 
-            const marker = L.circleMarker([lat, lng], { radius: 8, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.8 });
+            // Gunakan custom icon dengan logo
+            const marker = L.marker([lat, lng], { icon: customIcon });
             
             const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
             let fotoButtonHtml = '';
@@ -397,15 +430,20 @@
             `);
             markersLayer.addLayer(marker);
         });
+        
+        // Fit bounds jika ada marker
+        if (markersLayer.getLayers().length > 0) {
+            const group = new L.featureGroup(markersLayer.getLayers());
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
     }
 
-    // --- DOWNLOAD KMZ (FIXED & SINGLE VERSION) ---
+    // --- DOWNLOAD KMZ (TETAP SAMA) ---
     async function downloadKMZ() {
     if (allReports.length === 0) { alert('Belum ada data.'); return; }
     
     const zip = new JSZip();
     
-    // Fungsi untuk membersihkan string agar aman untuk XML
     function cleanXml(str) {
         if (!str) return '';
         return str.toString()
@@ -414,13 +452,11 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&apos;')
-            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''); // Hapus control characters
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
     }
     
-    // Fungsi untuk membuat CDATA yang aman
     function makeCdata(str) {
         if (!str) return '';
-        // Ganti ]] > dengan ]] ] ] > untuk mencegah penutupan CDATA prematur
         return str.replace(/\]\]>/g, ']]]]><![CDATA[>');
     }
 
@@ -440,7 +476,6 @@
             const status = r.Status_Validasi || 'Menunggu Verifikasi';
             if (status === 'Terverifikasi' || status === 'Selesai') colorHex = '00FF00'; 
 
-            // Siapkan data dengan pembersihan
             const kategori = cleanXml(r.Kategori || '-');
             const lokasiDetail = cleanXml(r.Lokasi_Detail || 'Lokasi Tidak Diketahui');
             const desa = cleanXml(r.Desa || '-');
@@ -454,7 +489,6 @@
             const idLaporan = cleanXml(r.ID_Laporan || '-');
             const exportTime = cleanXml(new Date().toLocaleString('id-ID'));
 
-            // Buat HTML description dengan CDATA yang aman
             let fotoLinkHtml = '';
             const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
             if (hasPhotos) {
@@ -505,17 +539,14 @@
             
         } catch (err) {
             console.error('Error processing report', index, err);
-            // Lanjutkan ke report berikutnya jika ada error
         }
     });
 
     kmlContent += `</Document>\n`;
     kmlContent += `</kml>\n`;
 
-    // Masukkan file doc.kml ke dalam ZIP
     zip.file("doc.kml", kmlContent);
     
-    // Generate file KMZ
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -527,7 +558,7 @@
     URL.revokeObjectURL(url);
 }
 
-    // --- ADMIN PANEL ---
+    // --- ADMIN PANEL (TETAP SAMA) ---
     async function checkAdmin() {
         const pin = document.getElementById('adminPin').value;
         if (!pin) return alert('Masukkan PIN!');
