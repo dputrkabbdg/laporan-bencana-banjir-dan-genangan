@@ -4,225 +4,439 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Pelaporan Banjir & Genangan Realtime</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- JSZip -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0f9f9', 100: '#cceded', 500: '#1F6366', 600: '#174B4D', 700: '#123a3c' },
+                        surface: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
    
-<style>
-    :root { --primary: #1F6366; --primary-dark: #174B4D; --primary-soft: #E6F1F0; --page-bg: #F3F7F6; --border: #E2EAE8; --text-main: #233B3B; --text-muted: #718381; }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body { background: var(--page-bg) !important; color: var(--text-main); font-family: Inter, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-    header.bg-blue-800 { background: linear-gradient(120deg, #174B4D, #1F6366) !important; padding: 26px 20px !important; box-shadow: 0 8px 24px rgba(23, 75, 77, .16); }
-    nav { padding: 8px 12px !important; gap: 6px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.94) !important; backdrop-filter: blur(14px); }
-    nav button { border-radius: 10px; padding: 11px 17px !important; font-size: 14px; transition: all .2s ease; border: 1px solid transparent; }
-    nav button:hover { background: var(--primary-soft) !important; color: var(--primary-dark) !important; }
-    .tab-active { background: var(--primary) !important; color: #fff !important; box-shadow: 0 3px 8px rgba(31,99,102,.18); }
-    main { padding-top: 28px !important; padding-bottom: 48px !important; }
-    main > section { background: #fff !important; border: 1px solid var(--border); border-radius: 18px !important; padding: 26px !important; box-shadow: 0 5px 20px rgba(31, 65, 62, .045); animation: panelIn .25s ease-out; }
-    main > section h2 { color: var(--primary-dark); letter-spacing: -.35px; line-height: 1.4; }
-    @keyframes panelIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    label { color: #435B59 !important; font-weight: 600 !important; margin-bottom: 5px; }
-    input:not([type="file"]), select, textarea { width: 100%; border: 1px solid #D8E4E1 !important; border-radius: 10px !important; background-color: #FCFEFD !important; color: var(--text-main); font-size: 14px; padding: 11px 12px !important; outline: none; transition: border-color .2s, box-shadow .2s; }
-    input:not([type="file"]):focus, select:focus, textarea:focus { border-color: var(--primary) !important; background: #fff !important; box-shadow: 0 0 0 3px rgba(31,99,102,.11); }
-    input[type="file"] { width: 100%; padding: 12px; border: 1px dashed #B8D1CC; border-radius: 10px; background: #F8FBFA; cursor: pointer; }
-    textarea { resize: vertical; min-height: 75px; }
-    button { cursor: pointer; transition: background .2s, transform .2s; }
-    main button { border-radius: 10px; font-weight: 600; }
-    main button:active { transform: scale(.985); }
-    main button:disabled { opacity: .65; cursor: wait; }
-    #btnSubmit { background: var(--primary) !important; box-shadow: 0 5px 12px rgba(31,99,102,.15); }
-    #btnSubmit:hover { background: var(--primary-dark) !important; }
-    #tab-dashboard .grid > div { border: 1px solid rgba(31,99,102,.08); border-radius: 14px !important; padding: 20px 14px !important; }
-    #map { height: 600px; width: 100%; border-radius: 14px; z-index: 1; }
-    #admin-login { max-width: 470px; margin: auto; padding: 44px 20px !important; }
-    #admin-panel .overflow-x-auto { border: 1px solid var(--border); border-radius: 12px; }
-    #admin-panel table { width: 100%; border-collapse: separate; border-spacing: 0; }
-    #admin-panel thead { background: #EDF4F2 !important; color: var(--primary-dark); }
-    #admin-panel td, #admin-panel th { padding: 13px 12px !important; border-bottom: 1px solid #EAF0EE; vertical-align: middle; }
-    #admin-panel tbody tr:hover { background: #F5F9F8 !important; }
-    
-    /* Logo di header */
-    .header-logo {
-        width: 48px;
-        height: 48px;
-        object-fit: contain;
-        border-radius: 10px;
-        background: rgba(255,255,255,0.15);
-        padding: 4px;
-    }
-    
-    @media (max-width: 640px) {
-        header.bg-blue-800 { padding: 20px 14px !important; }
-        header h1 { font-size: 19px !important; }
-        nav { justify-content: flex-start !important; overflow-x: auto; flex-wrap: nowrap !important; }
-        nav button { white-space: nowrap; flex-shrink: 0; padding: 10px 12px !important; font-size: 13px; }
-        main { padding: 14px !important; }
-        main > section { padding: 17px !important; }
-        #map { height: 450px; }
-        .header-logo { width: 40px; height: 40px; }
-    }
-</style>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { 
+            background-color: #F1F5F9; 
+            color: #0F172A; 
+            font-family: 'Inter', sans-serif; 
+            -webkit-font-smoothing: antialiased; 
+        }
+
+        /* Modern Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        /* Glassmorphism & Modern Cards */
+        .glass-header {
+            background: rgba(23, 75, 77, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .modern-card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .modern-card:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 10px 24px rgba(0,0,0,0.06);
+            transform: translateY(-2px);
+        }
+
+        /* Form Inputs Modern */
+        .input-modern {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1.5px solid #E2E8F0;
+            background: #F8FAFC;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        .input-modern:focus {
+            border-color: #1F6366;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(31, 99, 102, 0.1);
+        }
+
+        /* Tab Navigation */
+        .nav-pill {
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            color: #64748B;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-pill:hover { background: #E2E8F0; color: #0F172A; }
+        .nav-pill.active {
+            background: #1F6366;
+            color: white;
+            box-shadow: 0 4px 12px rgba(31, 99, 102, 0.25);
+        }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+        /* Toast Notification */
+        #toast-container { position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; }
+        .toast {
+            background: white; border-left: 4px solid #1F6366; padding: 16px 20px; border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px;
+            animation: slideIn 0.3s ease-out; min-width: 300px;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Map */
+        #map { height: 550px; width: 100%; border-radius: 16px; z-index: 1; border: 1px solid #E2E8F0; }
+        
+        /* Table Modern */
+        .table-modern { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .table-modern th { background: #F8FAFC; color: #475569; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; padding: 14px 16px; text-align: left; border-bottom: 1px solid #E2E8F0; }
+        .table-modern td { padding: 14px 16px; border-bottom: 1px solid #F1F5F9; font-size: 14px; color: #334155; }
+        .table-modern tr:hover td { background: #F8FAFC; }
+        .badge { padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .badge-yellow { background: #FEF3C7; color: #92400E; }
+        .badge-green { background: #D1FAE5; color: #065F46; }
+        .badge-red { background: #FEE2E2; color: #991B1B; }
+    </style>
 </head>
-<body>
+<body class="bg-surface min-h-screen flex flex-col">
 
-<header class="bg-blue-800 text-white p-4 shadow-md">
-    <div class="max-w-6xl mx-auto flex items-center gap-3">
-        <div class="hidden sm:flex items-center justify-center">
-            <img src="logo.png" alt="Logo" class="header-logo">
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- HEADER -->
+    <header class="glass-header text-white sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
+            <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex-shrink-0">
+                <img src="logo.png" alt="Logo" class="w-8 h-8 object-contain" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'ph ph-drop text-2xl text-cyan-300\'></i>'">
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[10px] uppercase tracking-[0.2em] text-cyan-200 font-semibold mb-0.5">Sistem Informasi Kebencanaan</p>
+                <h1 class="text-lg sm:text-xl font-bold tracking-tight truncate">Pelaporan Banjir & Genangan Realtime</h1>
+            </div>
+            <div class="hidden md:block text-right flex-shrink-0">
+                <p class="text-xs text-cyan-100" id="current-date"></p>
+            </div>
         </div>
-        <div class="flex-1">
-            <p class="text-xs uppercase tracking-widest text-emerald-100 mb-1">Sistem Informasi Kebencanaan</p>
-            <h1 class="text-xl md:text-2xl font-bold text-left">Pelaporan Banjir & Genangan Realtime</h1>
-            <p class="text-sm text-emerald-50 mt-1">Pemantauan kejadian dan informasi kondisi lapangan</p>
+    </header>
+
+    <!-- NAVIGATION -->
+    <nav class="bg-white border-b border-gray-200 sticky top-[73px] z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            <div class="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">
+                <button onclick="showTab('form')" id="btn-form" class="nav-pill active">
+                    <i class="ph ph-pencil-simple text-lg"></i> Form Lapor
+                </button>
+                <button onclick="showTab('dashboard')" id="btn-dashboard" class="nav-pill">
+                    <i class="ph ph-chart-pie-slice text-lg"></i> Dashboard
+                </button>
+                <button onclick="showTab('peta')" id="btn-peta" class="nav-pill">
+                    <i class="ph ph-map-trifold text-lg"></i> Peta Sebaran
+                </button>
+                <button onclick="showTab('admin')" id="btn-admin" class="nav-pill text-rose-600 hover:bg-rose-50 ml-auto border border-rose-100">
+                    <i class="ph ph-lock-key text-lg"></i> Admin UPTD
+                </button>
+            </div>
         </div>
-    </div>
-</header>
+    </nav>
 
-<nav class="flex flex-wrap justify-center bg-white shadow-sm sticky top-0 z-50">
-    <button onclick="showTab('form')" id="btn-form" class="px-4 py-3 font-semibold tab-active">Form Lapor</button>
-    <button onclick="showTab('dashboard')" id="btn-dashboard" class="px-4 py-3 font-semibold text-gray-600 hover:bg-gray-100">Dashboard</button>
-    <button onclick="showTab('peta')" id="btn-peta" class="px-4 py-3 font-semibold text-gray-600 hover:bg-gray-100">Peta Sebaran</button>
-    <button onclick="showTab('admin')" id="btn-admin" class="px-4 py-3 font-semibold text-red-600 hover:bg-red-50 border-l">🔒 Admin UPTD</button>
-</nav>
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
+        
+        <!-- TAB 1: FORM PELAPORAN -->
+        <section id="tab-form" class="animate-fade-in">
+            <div class="modern-card p-6 sm:p-8 max-w-4xl mx-auto">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center text-primary-600 flex-shrink-0">
+                        <i class="ph ph-warning-circle text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">Lapor Kejadian</h2>
+                        <p class="text-sm text-gray-500">Isi formulir di bawah ini dengan data yang akurat.</p>
+                    </div>
+                </div>
 
-<main class="container mx-auto p-4 max-w-6xl">
-    
-    <!-- TAB 1: FORM PELAPORAN -->
-    <section id="tab-form" class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">Lapor Kejadian Banjir / Genangan</h2>
-        <form id="laporForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label class="block text-sm font-medium text-gray-700">Nama Pelapor</label><input type="text" id="nama_pelapor" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div><label class="block text-sm font-medium text-gray-700">No. HP</label><input type="tel" id="no_hp" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div><label class="block text-sm font-medium text-gray-700">Kategori</label><select id="kategori" class="mt-1 block w-full rounded-md border p-2"><option>Banjir</option><option>Genangan</option><option>Longsor</option></select></div>
-            <div><label class="block text-sm font-medium text-gray-700">Waktu Kejadian</label><input type="datetime-local" id="waktu_kejadian" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div><label class="block text-sm font-medium text-gray-700">Kecamatan</label><input type="text" id="kecamatan" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div><label class="block text-sm font-medium text-gray-700">Desa</label><input type="text" id="desa" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700">Lokasi Detail</label><input type="text" id="lokasi_detail" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div><label class="block text-sm font-medium text-gray-700">Tinggi Air (cm)</label><input type="number" id="tinggi_air" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div><label class="block text-sm font-medium text-gray-700">Status Akses</label><select id="status_akses" class="mt-1 block w-full rounded-md border p-2"><option>Lolos Roda 2 & 4</option><option>Hanya Roda 2</option><option>Terputus Total</option></select></div>
-            <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700">Keterangan</label><textarea id="keterangan" rows="2" class="mt-1 block w-full rounded-md border p-2"></textarea></div>
+                <form id="laporForm" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Nama Pelapor</label>
+                        <input type="text" id="nama_pelapor" required class="input-modern" placeholder="Nama lengkap Anda">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">No. HP</label>
+                        <input type="tel" id="no_hp" required class="input-modern" placeholder="08xxxxxxxxxx">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Kategori</label>
+                        <select id="kategori" class="input-modern cursor-pointer">
+                            <option>Banjir</option>
+                            <option>Genangan</option>
+                            <option>Longsor</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Waktu Kejadian</label>
+                        <input type="datetime-local" id="waktu_kejadian" required class="input-modern">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Kecamatan</label>
+                        <input type="text" id="kecamatan" required class="input-modern" placeholder="Contoh: Cileunyi">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Desa</label>
+                        <input type="text" id="desa" required class="input-modern" placeholder="Contoh: Cileunyi Wetan">
+                    </div>
+                    <div class="md:col-span-2 space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Lokasi Detail</label>
+                        <input type="text" id="lokasi_detail" required class="input-modern" placeholder="Nama jalan, patokan, atau RT/RW">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Tinggi Air (cm)</label>
+                        <input type="number" id="tinggi_air" required class="input-modern" placeholder="0">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Status Akses</label>
+                        <select id="status_akses" class="input-modern cursor-pointer">
+                            <option>Lolos Roda 2 & 4</option>
+                            <option>Hanya Roda 2</option>
+                            <option>Terputus Total</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2 space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Keterangan Tambahan</label>
+                        <textarea id="keterangan" rows="3" class="input-modern" placeholder="Deskripsi kondisi lapangan..."></textarea>
+                    </div>
+                    
+                    <div class="md:col-span-2 space-y-1.5">
+                        <label class="text-sm font-semibold text-gray-700">Foto Kejadian</label>
+                        <div class="relative border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer" onclick="document.getElementById('foto').click()">
+                            <input type="file" id="foto" accept="image/*" multiple class="hidden">
+                            <i class="ph ph-camera text-3xl text-gray-400 mb-2"></i>
+                            <p class="text-sm text-gray-600 font-medium">Klik untuk unggah foto</p>
+                            <p class="text-xs text-gray-400 mt-1">Bisa lebih dari 1 file</p>
+                        </div>
+                        <div id="fotoPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-3"></div>
+                    </div>
+
+                    <div class="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <button type="button" onclick="getMyLocation()" class="bg-white text-blue-600 border border-blue-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition flex items-center gap-2 shadow-sm whitespace-nowrap">
+                            <i class="ph ph-crosshair"></i> Ambil Lokasi GPS
+                        </button>
+                        <span id="lokasiStatus" class="text-sm text-gray-600 flex items-center gap-2">
+                            <i class="ph ph-map-pin"></i> Koordinat belum diambil
+                        </span>
+                    </div>
+                    <input type="hidden" id="latitude"><input type="hidden" id="longitude">
+                    
+                    <div class="md:col-span-2 pt-2">
+                        <button type="submit" id="btnSubmit" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                            <i class="ph ph-paper-plane-right text-lg"></i> KIRIM LAPORAN
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 2: DASHBOARD -->
+        <section id="tab-dashboard" class="hidden animate-fade-in">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="modern-card p-5 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-2xl flex-shrink-0"><i class="ph ph-files"></i></div>
+                    <div><p class="text-2xl font-bold text-gray-900" id="totalLaporan">0</p><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Laporan</p></div>
+                </div>
+                <div class="modern-card p-5 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-2xl flex-shrink-0"><i class="ph ph-drop"></i></div>
+                    <div><p class="text-2xl font-bold text-gray-900" id="totalBanjir">0</p><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Banjir</p></div>
+                </div>
+                <div class="modern-card p-5 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-2xl flex-shrink-0"><i class="ph ph-puddle"></i></div>
+                    <div><p class="text-2xl font-bold text-gray-900" id="totalGenangan">0</p><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Genangan</p></div>
+                </div>
+                <div class="modern-card p-5 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center text-2xl flex-shrink-0"><i class="ph ph-clock-countdown"></i></div>
+                    <div><p class="text-2xl font-bold text-gray-900" id="totalPending">0</p><p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Menunggu</p></div>
+                </div>
+            </div>
             
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700">Foto Kejadian (Bisa Lebih dari 1)</label>
-                <input type="file" id="foto" accept="image/*" multiple class="mt-1 block w-full text-sm">
-                <div id="fotoPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-3"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="modern-card p-6">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="ph ph-chart-bar text-primary-600"></i> Laporan per Kecamatan</h3>
+                    <!-- PERBAIKAN: Wrapper dengan tinggi tetap (h-64 = 256px) -->
+                    <div class="relative h-64 w-full">
+                        <canvas id="chartKecamatan"></canvas>
+                    </div>
+                </div>
+                <div class="modern-card p-6">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="ph ph-chart-line-up text-primary-600"></i> Distribusi Tinggi Air</h3>
+                    <!-- PERBAIKAN: Wrapper dengan tinggi tetap (h-64 = 256px) -->
+                    <div class="relative h-64 w-full">
+                        <canvas id="chartTinggiAir"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: PETA -->
+        <section id="tab-peta" class="hidden animate-fade-in">
+            <div class="modern-card p-1 overflow-hidden">
+                <div class="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2"><i class="ph ph-map-trifold text-primary-600"></i> Peta Sebaran Realtime</h2>
+                        <p class="text-sm text-gray-500">Kabupaten Bandung dan sekitarnya</p>
+                    </div>
+                    <button onclick="downloadKMZ()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-sm whitespace-nowrap">
+                        <i class="ph ph-download-simple"></i> Download KMZ
+                    </button>
+                </div>
+                <div id="map" class="w-full"></div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 text-sm">
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#FFD700] border-2 border-white shadow-sm"></span> Genangan (< 30cm)</span>
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#FF6600] border-2 border-white shadow-sm"></span> Banjir (30-100cm)</span>
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#FF0000] border-2 border-white shadow-sm"></span> Banjir Parah (> 100cm)</span>
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#00BFFF] border-2 border-white shadow-sm"></span> Terverifikasi / Ditangani</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: ADMIN VERIFIKASI -->
+        <section id="tab-admin" class="hidden animate-fade-in">
+            <div id="admin-login" class="modern-card max-w-md mx-auto p-8 text-center mt-10">
+                <div class="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                    <i class="ph ph-shield-check"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-900 mb-2">Akses Petugas UPTD</h2>
+                <p class="text-sm text-gray-500 mb-6">Masukkan PIN keamanan untuk melanjutkan.</p>
+                <input type="password" id="adminPin" placeholder="••••••" class="input-modern text-center text-2xl tracking-[0.5em] mb-4 font-mono max-w-xs mx-auto block">
+                <button onclick="checkAdmin()" id="btnLoginAdmin" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-primary-600/20">
+                    Masuk Dashboard
+                </button>
             </div>
 
-            <div class="md:col-span-2 flex items-center gap-2">
-                <button type="button" onclick="getMyLocation()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">📍 Ambil GPS</button>
-                <span id="lokasiStatus" class="text-sm text-gray-500">Koordinat belum diambil</span>
+            <div id="admin-panel" class="hidden modern-card overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2"><i class="ph ph-table text-primary-600"></i> Panel Verifikasi Laporan</h2>
+                    <button onclick="logoutAdmin()" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1">
+                        <i class="ph ph-sign-out"></i> Keluar
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="table-modern">
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Lokasi</th>
+                                <th>Kategori</th>
+                                <th>Tinggi Air</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminTableBody"></tbody>
+                    </table>
+                </div>
             </div>
-            <input type="hidden" id="latitude"><input type="hidden" id="longitude">
-            <div class="md:col-span-2">
-                <button type="submit" id="btnSubmit" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700">KIRIM LAPORAN</button>
-            </div>
-        </form>
-    </section>
+        </section>
+    </main>
 
-    <!-- TAB 2: DASHBOARD -->
-    <section id="tab-dashboard" class="hidden bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-xl font-bold mb-4">Dashboard Resume</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-blue-100 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-blue-800" id="totalLaporan">0</p><p class="text-sm">Total Laporan</p></div>
-            <div class="bg-red-100 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-red-800" id="totalBanjir">0</p><p class="text-sm">Banjir</p></div>
-            <div class="bg-yellow-100 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-yellow-800" id="totalGenangan">0</p><p class="text-sm">Genangan</p></div>
-            <div class="bg-gray-100 p-4 rounded-lg text-center"><p class="text-3xl font-bold text-gray-800" id="totalPending">0</p><p class="text-sm">Menunggu Verifikasi</p></div>
+    <footer class="bg-white border-t border-gray-200 py-6 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+            &copy; 2024 UPTD Pengelolaan Sarana Prasarana Wilayah. All rights reserved.
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div><canvas id="chartKecamatan"></canvas></div>
-            <div><canvas id="chartTinggiAir"></canvas></div>
-        </div>
-    </section>
-
-    <!-- TAB 3: PETA -->
-    <section id="tab-peta" class="hidden bg-white p-6 rounded-lg shadow-md">
-        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-            <h2 class="text-xl font-bold">Peta Sebaran Realtime</h2>
-            <button onclick="downloadKMZ()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">📥 Download KMZ</button>
-        </div>
-        <div id="map" class="rounded-lg border"></div>
-        <div class="mt-4 flex flex-wrap gap-4 text-sm">
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-yellow-400 rounded-full inline-block border-2 border-white shadow"></span> Genangan (< 30cm)</span>
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-orange-500 rounded-full inline-block border-2 border-white shadow"></span> Banjir (30-100cm)</span>
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-red-600 rounded-full inline-block border-2 border-white shadow"></span> Banjir Parah (> 100cm)</span>
-            <span class="flex items-center gap-1"><span class="w-4 h-4 bg-cyan-400 rounded-full inline-block border-2 border-white shadow"></span> Terverifikasi / Ditangani</span>
-        </div>
-    </section>
-
-    <!-- TAB 4: ADMIN VERIFIKASI -->
-    <section id="tab-admin" class="hidden bg-white p-6 rounded-lg shadow-md">
-        <div id="admin-login" class="text-center py-10">
-            <h2 class="text-xl font-bold mb-4">Akses Khusus Petugas UPTD</h2>
-            <input type="password" id="adminPin" placeholder="Masukkan PIN Admin" class="border p-2 rounded w-full max-w-xs mb-3 text-center text-lg tracking-widest">
-            <br>
-            <button onclick="checkAdmin()" id="btnLoginAdmin" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold">Masuk</button>
-            <p class="text-xs text-gray-500 mt-4">Autentikasi diverifikasi secara aman oleh server.</p>
-        </div>
-
-        <div id="admin-panel" class="hidden">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Panel Verifikasi Laporan</h2>
-                <button onclick="logoutAdmin()" class="text-red-600 text-sm hover:underline font-semibold">Keluar</button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="p-2">Waktu</th>
-                            <th class="p-2">Lokasi</th>
-                            <th class="p-2">Kategori</th>
-                            <th class="p-2">Tinggi Air</th>
-                            <th class="p-2">Status Saat Ini</th>
-                            <th class="p-2">Aksi Verifikasi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="adminTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-</main>
+    </footer>
 
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbw47Y4CN6P5SGvGtqO01qaO5pzEpOA3gOKvO2Zi7F14QZq8F8ay_umcoM70l3MwnayZmQ/exec';
-    const FOLDER_ID = '1sF0RT6sGm-koUJQcB9p4_oB49rIJ-ju9';
     let map, markersLayer, allReports = [];
     let selectedFiles = [];
     let sessionPin = '';
+    let chartKecamatanInstance = null;
+    let chartTinggiAirInstance = null;
+
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        const icon = type === 'success' ? '<i class="ph ph-check-circle text-2xl text-emerald-500"></i>' : '<i class="ph ph-warning-circle text-2xl text-rose-500"></i>';
+        toast.style.borderLeftColor = type === 'success' ? '#10B981' : '#F43F5E';
+        toast.innerHTML = `${icon} <span class="text-sm font-medium text-gray-700">${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
 
     function showTab(tabName) {
-        document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
-        document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-        document.querySelectorAll('nav button').forEach(b => {
-            b.classList.remove('tab-active', 'text-white');
-            b.classList.add('text-gray-600');
+        document.querySelectorAll('main > section').forEach(s => {
+            s.classList.add('hidden');
+            s.classList.remove('animate-fade-in');
         });
-        const activeBtn = document.getElementById(`btn-${tabName}`);
-        activeBtn.classList.add('tab-active');
-        activeBtn.classList.remove('text-gray-600');
+        const activeSection = document.getElementById(`tab-${tabName}`);
+        activeSection.classList.remove('hidden');
+        void activeSection.offsetWidth;
+        activeSection.classList.add('animate-fade-in');
+
+        document.querySelectorAll('.nav-pill').forEach(b => {
+            b.classList.remove('active');
+            if(b.id === `btn-${tabName}`) b.classList.add('active');
+        });
 
         if (tabName === 'dashboard' || tabName === 'peta' || tabName === 'admin') {
             fetchData();
         }
         
-        // Fix map render when tab is shown
         if (tabName === 'peta' && map) {
-            setTimeout(() => {
-                map.invalidateSize();
-            }, 100);
+            setTimeout(() => { map.invalidateSize(); }, 100);
         }
     }
 
     function getMyLocation() {
+        const statusEl = document.getElementById('lokasiStatus');
+        statusEl.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Mengambil lokasi...';
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(pos => {
                 document.getElementById('latitude').value = pos.coords.latitude;
                 document.getElementById('longitude').value = pos.coords.longitude;
-                document.getElementById('lokasiStatus').innerText = `✅ ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-            }, () => alert('Gagal mengambil lokasi. Pastikan GPS aktif dan izin diberikan.'));
+                statusEl.innerHTML = `<i class="ph ph-check-circle text-emerald-600"></i> ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+            }, () => {
+                statusEl.innerHTML = '<i class="ph ph-x-circle text-rose-500"></i> Gagal mengambil lokasi.';
+                showToast('Gagal mengambil lokasi. Pastikan GPS aktif.', 'error');
+            });
         }
     }
 
@@ -240,10 +454,14 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const div = document.createElement('div');
-                div.className = 'relative border rounded-lg overflow-hidden shadow-sm';
+                div.className = 'relative group rounded-xl overflow-hidden border border-gray-200 aspect-square';
                 div.innerHTML = `
-                    <img src="${e.target.result}" class="w-full h-24 object-cover">
-                    <button type="button" onclick="removeFile(${index})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow">×</button>
+                    <img src="${e.target.result}" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button type="button" onclick="removeFile(${index})" class="bg-rose-500 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-rose-600 transition">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
                 `;
                 container.appendChild(div);
             }
@@ -265,14 +483,12 @@
                 img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
+                    let width = img.width, height = img.height;
                     if (width > maxWidth) {
                         height = Math.round((height * maxWidth) / width);
                         width = maxWidth;
                     }
-                    canvas.width = width;
-                    canvas.height = height;
+                    canvas.width = width; canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     resolve(canvas.toDataURL('image/jpeg', quality));
@@ -284,14 +500,14 @@
     document.getElementById('laporForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         const btn = document.getElementById('btnSubmit');
-        btn.innerText = 'Mengompres & Mengirim...'; 
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i> Mengompres & Mengirim...'; 
         btn.disabled = true;
 
         const fotoList = [];
         for (let i = 0; i < selectedFiles.length; i++) {
-            const file = selectedFiles[i];
-            const base64 = await compressImage(file);
-            fotoList.push({ nama_file: `foto_${i+1}_${file.name}`, foto_base64: base64 });
+            const base64 = await compressImage(selectedFiles[i]);
+            fotoList.push({ nama_file: `foto_${i+1}_${selectedFiles[i].name}`, foto_base64: base64 });
         }
 
         const payload = {
@@ -313,14 +529,17 @@
 
         fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) })
         .then(() => {
-            alert('Laporan berhasil dikirim! Terima kasih.');
+            showToast('Laporan berhasil dikirim! Terima kasih.');
             document.getElementById('laporForm').reset();
             selectedFiles = [];
             renderPreview();
-            document.getElementById('lokasiStatus').innerText = 'Koordinat belum diambil';
+            document.getElementById('lokasiStatus').innerHTML = '<i class="ph ph-map-pin"></i> Koordinat belum diambil';
         })
-        .catch(() => alert('Gagal mengirim. Periksa koneksi internet.'))
-        .finally(() => { btn.innerText = 'KIRIM LAPORAN'; btn.disabled = false; });
+        .catch(() => showToast('Gagal mengirim. Periksa koneksi internet.', 'error'))
+        .finally(() => { 
+            btn.innerHTML = originalText; 
+            btn.disabled = false; 
+        });
     });
 
     async function fetchData() {
@@ -331,7 +550,7 @@
                 allReports = result.data.filter(r => r.Latitude && r.Longitude);
                 updateDashboard();
                 updateMap();
-                if(document.getElementById('admin-panel').classList.contains('hidden') === false) {
+                if(!document.getElementById('admin-panel').classList.contains('hidden')) {
                     renderAdminTable();
                 }
             }
@@ -343,16 +562,58 @@
         document.getElementById('totalBanjir').innerText = allReports.filter(r => r.Kategori === 'Banjir').length;
         document.getElementById('totalGenangan').innerText = allReports.filter(r => r.Kategori === 'Genangan').length;
         document.getElementById('totalPending').innerText = allReports.filter(r => (r.Status_Validasi || '').includes('Menunggu')).length;
+        renderCharts();
     }
 
-    // --- MAP (WARNA KONTRAS UNTUK GOOGLE EARTH - LATAR HIJAU) ---
+    function renderCharts() {
+        const kecCounts = {};
+        const tinggiRanges = { '< 30cm': 0, '30-100cm': 0, '> 100cm': 0 };
+        
+        allReports.forEach(r => {
+            kecCounts[r.Kecamatan || 'Lainnya'] = (kecCounts[r.Kecamatan || 'Lainnya'] || 0) + 1;
+            const t = parseInt(r.Tinggi_Air) || 0;
+            if(t < 30) tinggiRanges['< 30cm']++;
+            else if(t <= 100) tinggiRanges['30-100cm']++;
+            else tinggiRanges['> 100cm']++;
+        });
+
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 15, font: { family: 'Inter', size: 12 } } } },
+            scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } }, x: { grid: { display: false } } }
+        };
+
+        if (chartKecamatanInstance) chartKecamatanInstance.destroy();
+        chartKecamatanInstance = new Chart(document.getElementById('chartKecamatan'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(kecCounts),
+                datasets: [{ label: 'Jumlah Laporan', data: Object.values(kecCounts), backgroundColor: '#1F6366', borderRadius: 6, barThickness: 24 }]
+            },
+            options: chartOptions
+        });
+
+        if (chartTinggiAirInstance) chartTinggiAirInstance.destroy();
+        chartTinggiAirInstance = new Chart(document.getElementById('chartTinggiAir'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(tinggiRanges),
+                datasets: [{ data: Object.values(tinggiRanges), backgroundColor: ['#FFD700', '#FF6600', '#FF0000'], borderWidth: 0, hoverOffset: 4 }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 15, font: { family: 'Inter', size: 12 } } } } 
+            }
+        });
+    }
+
     function updateMap() {
         if (!map) {
-            // Inisialisasi peta dengan center Kabupaten Bandung
             map = L.map('map').setView([-6.9175, 107.6191], 11);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
+                attribution: '© OpenStreetMap', maxZoom: 19
             }).addTo(map);
             markersLayer = L.layerGroup().addTo(map);
         }
@@ -361,237 +622,122 @@
         allReports.forEach(r => {
             const lat = parseFloat(r.Latitude);
             const lng = parseFloat(r.Longitude);
-            
-            // Lewati data jika koordinat tidak valid
             if (isNaN(lat) || isNaN(lng)) return;
 
             const tinggi = parseInt(r.Tinggi_Air) || 0;
-            
-            // WARNA KONTRAS untuk Google Earth (latar hijau):
-            // - Kuning terang: kontras dengan hijau
-            // - Oranye: kontras dengan hijau  
-            // - Merah: kontras dengan hijau
-            // - Cyan/Biru muda: kontras dengan hijau
-            let color = '#FFD700'; // Kuning emas - sangat kontras dengan hijau
-            if (tinggi >= 30 && tinggi <= 100) color = '#FF6600'; // Oranye terang
-            if (tinggi > 100) color = '#FF0000'; // Merah terang
+            let color = '#FFD700';
+            if (tinggi >= 30 && tinggi <= 100) color = '#FF6600';
+            if (tinggi > 100) color = '#FF0000';
             
             const status = r.Status_Validasi || 'Menunggu Verifikasi';
             if (status === 'Terverifikasi' || status === 'Sedang Ditangani' || status === 'Selesai') {
-                color = '#00BFFF'; // Cyan/biru langit - sangat kontras dengan hijau
+                color = '#00BFFF';
             }
 
-            // CircleMarker dengan border putih agar lebih terlihat
             const marker = L.circleMarker([lat, lng], { 
-                radius: 10, 
-                fillColor: color, 
-                color: '#FFFFFF', // Border putih
-                weight: 3, // Border tebal
-                fillOpacity: 0.9,
-                opacity: 1
+                radius: 9, fillColor: color, color: '#FFFFFF', weight: 2.5, fillOpacity: 0.9, opacity: 1
             });
             
-            const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
             let fotoButtonHtml = '';
-            if (hasPhotos) {
+            if (r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '') {
                 const firstFotoUrl = r.Foto_URL.split(' | ')[0].trim();
                 const fotoCount = r.Foto_URL.split(' | ').length;
-                fotoButtonHtml = `
-                    <div class="mt-2">
-                        <a href="${firstFotoUrl}" target="_blank" class="inline-block bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded transition">
-                            📷 Lihat Foto (${fotoCount} foto)
-                        </a>
-                    </div>
-                `;
+                fotoButtonHtml = `<a href="${firstFotoUrl}" target="_blank" class="inline-flex items-center gap-1 mt-3 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg transition"><i class="ph ph-image"></i> Lihat ${fotoCount} Foto</a>`;
             }
-            
-            // Safe fallbacks untuk mencegah error jika data kosong
-            const lokasiDetail = r.Lokasi_Detail || 'Lokasi Tidak Diketahui';
-            const desa = r.Desa || '-';
-            const kecamatan = r.Kecamatan || '-';
-            const kategori = r.Kategori || '-';
-            const tinggiAir = r.Tinggi_Air || '0';
-            const statusAkses = r.Status_Akses || '-';
-            const waktuKejadian = r.Waktu_Kejadian || '-';
-            const namaPelapor = r.Nama_Pelapor || 'Anonim';
-            const keterangan = r.Keterangan || '-';
 
             marker.bindPopup(`
-                <div class="text-sm min-w-[250px] max-w-[300px]">
-                    <div class="border-b pb-2 mb-2">
-                        <strong class="text-base text-blue-800">${lokasiDetail}</strong>
+                <div class="font-sans text-sm min-w-[260px]">
+                    <div class="border-b border-gray-200 pb-2 mb-2">
+                        <strong class="text-base text-gray-900 block">${r.Lokasi_Detail || 'Lokasi Tidak Diketahui'}</strong>
+                        <span class="text-xs text-gray-500">${r.Desa || '-'}, ${r.Kecamatan || '-'}</span>
                     </div>
-                    <table class="w-full text-xs">
-                        <tr><td class="py-1 font-semibold">Desa/Kec:</td><td class="py-1">${desa}, ${kecamatan}</td></tr>
-                        <tr><td class="py-1 font-semibold">Kategori:</td><td class="py-1">${kategori}</td></tr>
-                        <tr><td class="py-1 font-semibold">Tinggi Air:</td><td class="py-1 font-bold text-red-600">${tinggiAir} cm</td></tr>
-                        <tr><td class="py-1 font-semibold">Akses:</td><td class="py-1">${statusAkses}</td></tr>
-                        <tr><td class="py-1 font-semibold">Waktu:</td><td class="py-1">${waktuKejadian}</td></tr>
-                        <tr><td class="py-1 font-semibold">Pelapor:</td><td class="py-1">${namaPelapor}</td></tr>
-                        <tr><td class="py-1 font-semibold">Status:</td><td class="py-1"><span class="px-2 py-0.5 rounded text-xs ${status.includes('Menunggu') ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">${status}</span></td></tr>
-                        <tr><td class="py-1 font-semibold" valign="top">Keterangan:</td><td class="py-1"><i>"${keterangan}"</i></td></tr>
-                    </table>
+                    <div class="space-y-1.5 text-gray-700">
+                        <div class="flex justify-between"><span class="text-gray-500">Kategori:</span> <span class="font-medium">${r.Kategori || '-'}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Tinggi Air:</span> <span class="font-bold text-rose-600">${r.Tinggi_Air || '0'} cm</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Status:</span> <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${status.includes('Menunggu') ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">${status}</span></div>
+                    </div>
                     ${fotoButtonHtml}
                 </div>
             `);
             markersLayer.addLayer(marker);
         });
         
-        // Fit bounds jika ada marker
         if (markersLayer.getLayers().length > 0) {
-            const group = new L.featureGroup(markersLayer.getLayers());
-            map.fitBounds(group.getBounds().pad(0.1));
+            map.fitBounds(L.featureGroup(markersLayer.getLayers()).getBounds().pad(0.1));
         }
     }
 
-    // --- DOWNLOAD KMZ (WARNA KONTRAS UNTUK GOOGLE EARTH) ---
     async function downloadKMZ() {
-    if (allReports.length === 0) { alert('Belum ada data.'); return; }
-    
-    const zip = new JSZip();
-    
-    function cleanXml(str) {
-        if (!str) return '';
-        return str.toString()
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&apos;')
-            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    }
-    
-    function makeCdata(str) {
-        if (!str) return '';
-        return str.replace(/\]\]>/g, ']]]]><![CDATA[>');
-    }
-
-    let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    kmlContent += `<kml xmlns="http://www.opengis.net/kml/2.2">\n`;
-    kmlContent += `<Document>\n`;
-    kmlContent += `    <name>Laporan Banjir dan Genangan Realtime</name>\n`;
-    kmlContent += `    <description>Data diekspor pada ${cleanXml(new Date().toLocaleString('id-ID'))}</description>\n`;
-
-    allReports.forEach((r, index) => {
-        try {
-            const tinggi = parseInt(r.Tinggi_Air) || 0;
-            
-            // WARNA KONTRAS untuk Google Earth (format KML: AABBGGR - Alpha, Blue, Green, Red)
-            // Latar Google Earth hijau, jadi gunakan warna yang kontras:
-            let colorHex = '00D7FF'; // Kuning (FFD700 dalam BGR) - sangat kontras dengan hijau
-            if (tinggi >= 30 && tinggi <= 100) colorHex = '0066FF'; // Oranye (FF6600 dalam BGR)
-            if (tinggi > 100) colorHex = '0000FF'; // Merah (FF0000 dalam BGR)
-            
-            const status = r.Status_Validasi || 'Menunggu Verifikasi';
-            if (status === 'Terverifikasi' || status === 'Selesai') colorHex = 'FFBF00'; // Cyan (00BFFF dalam BGR)
-
-            const kategori = cleanXml(r.Kategori || '-');
-            const lokasiDetail = cleanXml(r.Lokasi_Detail || 'Lokasi Tidak Diketahui');
-            const desa = cleanXml(r.Desa || '-');
-            const kecamatan = cleanXml(r.Kecamatan || '-');
-            const tinggiAir = cleanXml(r.Tinggi_Air || '0');
-            const statusAkses = cleanXml(r.Status_Akses || '-');
-            const waktuKejadian = cleanXml(r.Waktu_Kejadian || '-');
-            const namaPelapor = cleanXml(r.Nama_Pelapor || 'Anonim');
-            const noHp = cleanXml(r.No_HP || '-');
-            const keterangan = cleanXml(r.Keterangan || '-');
-            const idLaporan = cleanXml(r.ID_Laporan || '-');
-            const exportTime = cleanXml(new Date().toLocaleString('id-ID'));
-
-            let fotoLinkHtml = '';
-            const hasPhotos = r.Foto_URL && r.Foto_URL !== 'Gagal Upload Foto' && r.Foto_URL.trim() !== '';
-            if (hasPhotos) {
-                const fotoCount = r.Foto_URL.split(' | ').length;
-                const firstFotoUrl = cleanXml(r.Foto_URL.split(' | ')[0].trim());
-                fotoLinkHtml = `<br/><b>Foto:</b> <a href="${firstFotoUrl}">Lihat ${fotoCount} Foto di Google Drive</a>`;
-            }
-
-            const htmlDescription = `
-<div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5;">
-    <h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 16px;">${kategori} - ${lokasiDetail}</h3>
-    <table style="width: 100%; border-collapse: collapse;">
-        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd; width: 40%;"><b>Desa/Kecamatan</b></td><td style="padding: 6px; border: 1px solid #ddd;">${desa}, ${kecamatan}</td></tr>
-        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Tinggi Air</b></td><td style="padding: 6px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${tinggiAir} cm</td></tr>
-        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Status Akses</b></td><td style="padding: 6px; border: 1px solid #ddd;">${statusAkses}</td></tr>
-        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Waktu Kejadian</b></td><td style="padding: 6px; border: 1px solid #ddd;">${waktuKejadian}</td></tr>
-        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;"><b>Pelapor</b></td><td style="padding: 6px; border: 1px solid #ddd;">${namaPelapor} (${noHp})</td></tr>
-        <tr><td style="padding: 6px; border: 1px solid #ddd;"><b>Status UPTD</b></td><td style="padding: 6px; border: 1px solid #ddd;"><b style="color: ${status.includes('Menunggu') ? '#d97706' : '#16a34a'}">${cleanXml(status)}</b></td></tr>
-        <tr style="background: #f0f9ff;"><td style="padding: 6px; border: 1px solid #ddd;" valign="top"><b>Keterangan</b></td><td style="padding: 6px; border: 1px solid #ddd;"><i>${keterangan}</i></td></tr>
-    </table>
-    ${fotoLinkHtml}
-    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
-        ID Laporan: ${idLaporan}<br/>
-        Exported: ${exportTime}
-    </div>
-</div>`;
-
-            const safeDescription = makeCdata(htmlDescription);
-            const placemarkName = `${kategori}: ${lokasiDetail}`;
-            
-            const lng = cleanXml(r.Longitude);
-            const lat = cleanXml(r.Latitude);
-
-            kmlContent += `    <Placemark>\n`;
-            kmlContent += `        <name>${placemarkName}</name>\n`;
-            kmlContent += `        <description><![CDATA[${safeDescription}]]></description>\n`;
-            kmlContent += `        <Style>\n`;
-            kmlContent += `            <IconStyle>\n`;
-            kmlContent += `                <color>ff${colorHex}</color>\n`;
-            kmlContent += `                <scale>1.3</scale>\n`;
-            kmlContent += `                <Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>\n`;
-            kmlContent += `            </IconStyle>\n`;
-            kmlContent += `        </Style>\n`;
-            kmlContent += `        <Point>\n`;
-            kmlContent += `            <coordinates>${lng},${lat},0</coordinates>\n`;
-            kmlContent += `        </Point>\n`;
-            kmlContent += `    </Placemark>\n`;
-            
-        } catch (err) {
-            console.error('Error processing report', index, err);
+        if (allReports.length === 0) { showToast('Belum ada data untuk diunduh.', 'error'); return; }
+        showToast('Sedang menyiapkan file KMZ...', 'success');
+        
+        const zip = new JSZip();
+        function cleanXml(str) {
+            if (!str) return '';
+            return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
         }
-    });
+        function makeCdata(str) { return str ? str.replace(/\]\]>/g, ']]]]><![CDATA[>') : ''; }
 
-    kmlContent += `</Document>\n`;
-    kmlContent += `</kml>\n`;
+        let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>Laporan Banjir Realtime</name>\n`;
 
-    zip.file("doc.kml", kmlContent);
-    
-    const blob = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Laporan_Banjir_Realtime_${new Date().getTime()}.kmz`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+        allReports.forEach(r => {
+            try {
+                const tinggi = parseInt(r.Tinggi_Air) || 0;
+                let colorHex = '00D7FF';
+                if (tinggi >= 30 && tinggi <= 100) colorHex = '0066FF';
+                if (tinggi > 100) colorHex = '0000FF';
+                const status = r.Status_Validasi || 'Menunggu';
+                if (status === 'Terverifikasi' || status === 'Selesai') colorHex = 'FFBF00';
 
-    // --- ADMIN PANEL (TETAP SAMA) ---
+                let fotoLink = '';
+                if (r.Foto_URL && r.Foto_URL.trim() !== '') {
+                    fotoLink = `<br/><b>Foto:</b> <a href="${cleanXml(r.Foto_URL.split(' | ')[0].trim())}">Lihat di Google Drive</a>`;
+                }
+
+                const desc = `<div style="font-family:sans-serif;font-size:13px;"><b>${cleanXml(r.Kategori)}</b> - ${cleanXml(r.Lokasi_Detail)}<br/>Tinggi: ${cleanXml(r.Tinggi_Air)}cm<br/>Status: ${cleanXml(status)}${fotoLink}</div>`;
+                
+                kmlContent += `<Placemark><name>${cleanXml(r.Kategori)}: ${cleanXml(r.Lokasi_Detail)}</name>`;
+                kmlContent += `<description><![CDATA[${makeCdata(desc)}]]></description>`;
+                kmlContent += `<Style><IconStyle><color>ff${colorHex}</color><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>`;
+                kmlContent += `<Point><coordinates>${cleanXml(r.Longitude)},${cleanXml(r.Latitude)},0</coordinates></Point></Placemark>\n`;
+            } catch (err) { console.error(err); }
+        });
+
+        kmlContent += `</Document></kml>`;
+        zip.file("doc.kml", kmlContent);
+        const blob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `Laporan_Banjir_${new Date().getTime()}.kmz`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('File KMZ berhasil diunduh!');
+    }
+
     async function checkAdmin() {
         const pin = document.getElementById('adminPin').value;
-        if (!pin) return alert('Masukkan PIN!');
+        if (!pin) return showToast('Masukkan PIN terlebih dahulu!', 'error');
         
         const btn = document.getElementById('btnLoginAdmin');
-        btn.innerText = 'Memeriksa...';
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Memeriksa...';
         btn.disabled = true;
 
         try {
             const response = await fetch(`${GAS_URL}?action=verifyAdmin&pin=${encodeURIComponent(pin)}`);
             const result = await response.json();
-            
             if (result.status === 'success') {
                 sessionPin = pin;
                 document.getElementById('admin-login').classList.add('hidden');
                 document.getElementById('admin-panel').classList.remove('hidden');
                 renderAdminTable();
+                showToast('Login berhasil!');
             } else {
-                alert(result.message || 'PIN Salah!');
+                showToast(result.message || 'PIN Salah!', 'error');
             }
         } catch (error) {
-            alert('Gagal terhubung ke server.');
+            showToast('Gagal terhubung ke server.', 'error');
         } finally {
-            btn.innerText = 'Masuk';
+            btn.innerHTML = 'Masuk Dashboard';
             btn.disabled = false;
         }
     }
@@ -606,20 +752,19 @@
     function renderAdminTable() {
         const tbody = document.getElementById('adminTableBody');
         tbody.innerHTML = '';
-        const sortedReports = [...allReports].reverse();
-        
-        sortedReports.forEach(r => {
-            const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-gray-50';
+        [...allReports].reverse().forEach(r => {
             const status = r.Status_Validasi || 'Menunggu Verifikasi';
+            const badgeClass = status.includes('Menunggu') ? 'badge-yellow' : (status.includes('Palsu') ? 'badge-red' : 'badge-green');
+            
+            const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="p-2">${new Date(r.Timestamp).toLocaleDateString('id-ID')}</td>
-                <td class="p-2">${r.Lokasi_Detail || '-'}<br><span class="text-xs text-gray-500">${r.Desa || '-'}, ${r.Kecamatan || '-'}</span></td>
-                <td class="p-2">${r.Kategori || '-'}</td>
-                <td class="p-2 font-bold">${r.Tinggi_Air || '0'} cm</td>
-                <td class="p-2"><span class="px-2 py-1 rounded text-xs ${status.includes('Menunggu') ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">${status}</span></td>
-                <td class="p-2">
-                    <select onchange="updateStatus('${r.ID_Laporan}', this.value)" class="border rounded p-1 text-xs w-full">
+                <td class="whitespace-nowrap">${new Date(r.Timestamp).toLocaleDateString('id-ID')}</td>
+                <td><div class="font-medium text-gray-900">${r.Lokasi_Detail || '-'}</div><div class="text-xs text-gray-500">${r.Desa || '-'}, ${r.Kecamatan || '-'}</div></td>
+                <td><span class="inline-flex items-center gap-1"><i class="ph ph-tag"></i> ${r.Kategori || '-'}</span></td>
+                <td class="font-bold text-gray-900">${r.Tinggi_Air || '0'} cm</td>
+                <td><span class="badge ${badgeClass}">${status}</span></td>
+                <td>
+                    <select onchange="updateStatus('${r.ID_Laporan}', this.value)" class="input-modern py-1.5 text-xs cursor-pointer">
                         <option value="" disabled selected>Ubah Status...</option>
                         <option value="Terverifikasi">✅ Terverifikasi</option>
                         <option value="Sedang Ditangani">🚧 Sedang Ditangani</option>
@@ -633,21 +778,18 @@
     }
 
     function updateStatus(idLaporan, newStatus) {
-        if (!sessionPin) return alert('Sesi admin habis, silakan login ulang.');
-        if (!confirm(`Ubah status laporan ${idLaporan} menjadi "${newStatus}"?`)) {
-            fetchData();
-            return;
+        if (!sessionPin) return showToast('Sesi admin habis, silakan login ulang.', 'error');
+        if (!confirm(`Ubah status laporan menjadi "${newStatus}"?`)) {
+            fetchData(); return;
         }
         
         fetch(GAS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {'Content-Type': 'application/json'},
+            method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ action: 'updateStatus', id_laporan: idLaporan, new_status: newStatus, admin_pin: sessionPin })
         }).then(() => {
-            alert('Status berhasil diperbarui!');
+            showToast('Status berhasil diperbarui!');
             fetchData(); 
-        }).catch(() => alert('Gagal memperbarui status.'));
+        }).catch(() => showToast('Gagal memperbarui status.', 'error'));
     }
 </script>
 </body>
